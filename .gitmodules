@@ -1,0 +1,3 @@
+[submodule "webgpu-radix-sort"]
+	path = webgpu-radix-sort
+	url = https://github.com/LXY666def/webgpu-radix-sort.git
