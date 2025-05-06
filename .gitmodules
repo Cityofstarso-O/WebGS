@@ -1,3 +1,6 @@
 [submodule "webgpu-radix-sort"]
 	path = webgpu-radix-sort
 	url = https://github.com/LXY666def/webgpu-radix-sort.git
+[submodule "dat.gui"]
+	path = dat.gui
+	url = https://github.com/dataarts/dat.gui.git

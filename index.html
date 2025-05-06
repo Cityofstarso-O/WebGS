@@ -1,11 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGPU GSRenderer</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<script type="text/javascript" src="dat.gui/build/dat.gui.min.js"></script>
+	<title>webgpu-samples: cameras</title>
+	<style>
+		:root {
+			color-scheme: light dark;
+		}
+
+		html,
+		body {
+			margin: 0;
+			/* remove default margin */
+			padding: 0;
+			/* remove default padding */
+			width: 100%;
+			/* make body fill the browser window */
+			height: 100%;
+			/* make body fill the browser window */
+			display: flex;
+			/* center the canvas */
+			justify-content: center;
+			align-items: center;
+		}
+
+		canvas {
+			width: 100%;
+			/* make canvas fill the body */
+			height: 100%;
+			/* make canvas fill the body */
+			display: block;
+			/* remove default margin/padding */
+		}
+	</style>
 </head>
+
 <body>
-    <script type="module" src="./GSRenderer.js"></script>
+	<canvas id="drop-zone"></canvas>
+	<script defer src="render.js" type="module"></script>
 </body>
 </html>
