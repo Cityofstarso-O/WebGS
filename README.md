@@ -1,11 +1,39 @@
-# Tips
-对于有集显和独显的系统，edge和chrome均默认使用集显进行计算。为了充分发挥GPU的计算性能，可以根据以下步骤切换到独显（如n卡）
-> 1.设置-系统-屏幕-选项卡，将要使用的浏览器的“图形首选项”改为高性能  
+# WebGS
+WebGPU viewer for 3dGS/4dGS using GPU radix sort.
+## Features
+- Fast GPU radix sort
+  - less artifacts during spinning view
+- Integrated with graphics pipeline
+  - drawing gaussians using instancing indirectly
+- Fully GPU tasks
+  - Ply file parsing and depth sorting implemented in GPU
+  - CPU only manages interaction logic
+## Requirements
+- adapter features
+  - `subgroups`
+  - `shader-f16`
 
-如果无效，可以尝试
-> 2.打开Nvidia Control Panel，强制使用独显  
+- adapter limits
+  - `maxComputeWorkgroupSizeX` = 512;
+  - `maxComputeInvocationsPerWorkgroup` = 512;
+  - `maxComputeWorkgroupStorageSize` = 20480;
+  - `maxBufferSize` = `Device.MAX_SPLAT_COUNT` * 96;
+  - `maxStorageBufferBindingSize` = `Device.MAX_SPLAT_COUNT` * 96;
+  - `maxStorageBuffersPerShaderStage` = 10;
+  
+`Device.MAX_SPLAT_COUNT` is set to 2^23 and you are free to change.
 
-如果仍无效，可以尝试  
-> 3.使用chrome，在chrome地址栏输入：chrome://flags/#ignore-gpu-blocklist，找到Override software rendering list选项，将其设为Enabled，重启浏览器
+- VRAM >= 4G
+## Run
+> This project is still in developement. You can use VSCode `Go Live` extension to preview it.
 
-建议首选chrome，经测试我的edge一直无法切换到独显，使用chrome后只做了第一个步骤就成功了。
+- drag the ply file into the page
+- left drag to rotate
+- press WASD to move 
+## TODO
+- [ ] add 4DGS support
+- [ ] make PlyLoader in a second thread
+- [ ] optimize details(gui, interaction, shaders, layouts)
+- [ ] performance test
+## Tips
+Chrome135 is highly recommended(my use). To activate your dedicated GPU(if there is), [check this tutorial](https://windowslovers.com/chrome-hardware-acceleration-guide/) to achieve higher performance.

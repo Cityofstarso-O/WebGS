@@ -37,9 +37,13 @@ async function main() {
 	const params = {
 		type: 'arcball',
 	};
+	const fpsInfo = {
+		fps: 0,
+	  };
 	// Callback handler for camera mode
 	let oldCameraType = params.type;
 	cameras.setType(params.type);
+	gui.add(fpsInfo, 'fps').listen();
 	gui.add(params, 'type', ['arcball', 'WASD']).onChange(() => {
 	  const newCameraType = params.type;
 	  cameras.copyMatrix(oldCameraType, newCameraType);
@@ -82,11 +86,19 @@ async function main() {
 	 * RENDER
 	 */
 	const workgroup_size = 512;
-	let lastFrameMS = Date.now();
+    let frameCount = 0;
+	let lastFPSMS = Date.now();
+	let lastFrameMS = lastFPSMS;
 	function frame() {
 		const now = Date.now();
 		const deltaTime = (now - lastFrameMS) / 1000;
 		lastFrameMS = now;
+		frameCount++;
+		if (now - lastFPSMS > 1000) {
+			fpsInfo.fps = Math.round(frameCount / ((now - lastFPSMS) * 0.001));
+        	frameCount = 0;
+        	lastFPSMS = now;
+		}
 
 		cameras.updateCameraUniform(deltaTime, inputHandler());
 		cameras.writeCameraUniformBuffer();

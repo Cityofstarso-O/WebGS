@@ -327,7 +327,7 @@ class GSRenderer {
                 primitive: {
                     topology: "triangle-list",
                     frontFace: "ccw",
-                    cullMode: "back",
+                    cullMode: "none",
                 },
                 vertex: {
                     entryPoint: "vert_main",

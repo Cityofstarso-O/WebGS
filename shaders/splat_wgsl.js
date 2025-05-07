@@ -46,6 +46,6 @@ fn frag_main(
     let gaussian_alpha = exp(-0.5f * dot(in_position, in_position));
     let alpha = in_color.a * gaussian_alpha;
     // premultiplied alpha
-    return vec4(in_color.bgr * alpha, alpha);
+    return vec4(in_color.rgb * alpha, alpha);
 }`;
 export default splat_wgsl;

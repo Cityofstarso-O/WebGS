@@ -225,7 +225,7 @@ class PlyLoader {
             return;
         }
         const floatArray = new Float32Array(arrayBuffer.slice(headerEnd), 0, this.offset / 4 * this.pointCount);
-        console.log(floatArray);
+        //console.log(floatArray);
         return floatArray;
     }
 
