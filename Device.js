@@ -1,5 +1,6 @@
+import { GlobalVar } from "./Global.js";
+
 class Device {
-    static MAX_SPLAT_COUNT = 2**23;
     constructor() {
         this._device = null;
         this._adapter = null;
@@ -46,8 +47,8 @@ class Device {
             const use_maxComputeWorkgroupSizeX = 512;
             const use_maxComputeInvocationsPerWorkgroup = 512;
             const use_maxComputeWorkgroupStorageSize = 20480;
-            const use_maxBufferSize = Device.MAX_SPLAT_COUNT * 48 * 2;  // sh buffer
-            const use_maxStorageBufferBindingSize = Device.MAX_SPLAT_COUNT * 48 * 2;  // sh buffer
+            const use_maxBufferSize = GlobalVar.MAX_SPLAT_COUNT * 48 * 2;  // sh buffer
+            const use_maxStorageBufferBindingSize = GlobalVar.MAX_SPLAT_COUNT * 48 * 2;  // sh buffer
             const use_maxStorageBuffersPerShaderStage = 10;
             if (use_maxComputeWorkgroupSizeX > this._adapter.limits.maxComputeWorkgroupSizeX ||
                 use_maxComputeInvocationsPerWorkgroup > this._adapter.limits.maxComputeInvocationsPerWorkgroup ||

@@ -1,3 +1,4 @@
+import { GlobalVar } from "./Global.js";
 import { mat4, vec3 } from 'https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js';
 import { ArcballCamera, WASDCamera, Camera } from './camera.js';
 import { createInputHandler } from './input.js';
@@ -54,11 +55,11 @@ async function main() {
 	/**
 	 * RESOURCE
 	 */
-	const reqs = radixSorter.vrdxGetSorterKeyValueStorageRequirements(GSRenderer.MAX_SPLAT_COUNT);
+	const reqs = radixSorter.vrdxGetSorterKeyValueStorageRequirements(GlobalVar.MAX_SPLAT_COUNT);
 	const storageBuffer = gpuDevice.createBuffer(reqs.size, reqs.usage);
 	gsRenderer.createBindGroup();
 	cameras.createBindGroup();
-	radixSorter.createBindGroup(GSRenderer.MAX_SPLAT_COUNT,
+	radixSorter.createBindGroup(GlobalVar.MAX_SPLAT_COUNT,
 		gsRenderer.visibleNumBuffer, 0,
 		gsRenderer.keyBuffer, 0,
 		gsRenderer.indexBuffer, 0,

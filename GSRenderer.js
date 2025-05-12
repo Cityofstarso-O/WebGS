@@ -3,10 +3,9 @@ import rank_comp_wgsl from './shaders/rank_comp_wgsl.js';
 import inverse_index_comp_wgsl from './shaders/inverse_index_comp_wgsl.js';
 import projection_comp_wgsl from './shaders/projection_comp_wgsl.js';
 import splat_wgsl from './shaders/splat_wgsl.js';
+import { GlobalVar } from "./Global.js";
 
 class GSRenderer {
-    static MAX_SPLAT_COUNT = 2**23;
-
     constructor(device_) {
         this.device = device_;
 
@@ -50,18 +49,19 @@ class GSRenderer {
     }
 
     preAllocate() {
+        const maxCount = GlobalVar.MAX_SPLAT_COUNT;
         {
             this.set1.pos = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 3 * 4, usage: GPUBufferUsage.STORAGE, label: "pos" }
+                { size: maxCount * 3 * 4, usage: GPUBufferUsage.STORAGE, label: "pos" }
             );
             this.set1.cov3d = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 6 * 4, usage: GPUBufferUsage.STORAGE, label: "cov3d" }
+                { size: maxCount * 6 * 4, usage: GPUBufferUsage.STORAGE, label: "cov3d" }
             );
             this.set1.opacity = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "opacity" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "opacity" }
             );
             this.set1.sh = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 48 * 2, usage: GPUBufferUsage.STORAGE, label: "sh" }
+                { size: maxCount * 48 * 2, usage: GPUBufferUsage.STORAGE, label: "sh" }
             );
         }
         {
@@ -69,19 +69,19 @@ class GSRenderer {
                 { size: 5 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT, label: "indirect" }
             );
             this.set2.instance = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 10 * 4, usage: GPUBufferUsage.STORAGE, label: "instance" }
+                { size: maxCount * 10 * 4, usage: GPUBufferUsage.STORAGE, label: "instance" }
             );
             this.set2.visibleNum = this.device.createBuffer(
                 { size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST, label: "visibleNum" }
             );
             this.set2.key = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "key" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "key" }
             );
             this.set2.index = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "index" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "index" }
             );
             this.set2.inverse = this.device.createBuffer(
-                { size: GSRenderer.MAX_SPLAT_COUNT * 1 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, label: "inverse" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, label: "inverse" }
             );
         }
     }

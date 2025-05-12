@@ -1,3 +1,5 @@
+import { GlobalVar } from "./Global.js";
+
 class PlyLoader {
     static AlignUp(a, aligment) {
         return Math.floor((a + aligment - 1) / aligment) * aligment;
@@ -5,7 +7,6 @@ class PlyLoader {
     static RoundUp(a, b) {
         return Math.ceil((a + b - 1) / b);
     }
-    static MAX_SPLAT_COUNT = 2**23;
     constructor(device_) {
         this.device = device_;
 
@@ -18,13 +19,18 @@ class PlyLoader {
         this.bindGroupLayout = null;
         this.bindGroup = null;
 
-        this.hasNewPly = false;
         this.newPlyReady = false;
+        this.newPtReady = false;
         this.ifRecreateBuffer = false;
 
         this.pointCount = 0;
         this.ply_offsets = new Uint32Array(60);
         this.offset = 0;
+        this.updatePlyOffsets_Func = {
+            MODE_3DGS: this.updatePlyoffsets_3DGS.bind(this),
+            MODE_SpaceTime_FULL: this.updatePlyoffsets_SpaceTime_FULL.bind(this),
+            MODE_SpaceTime_LITE: this.updatePlyoffsets_SpaceTime_LITE.bind(this),
+        }
 
         this.dynamicStorageAlignment = this.device.limits.minStorageBufferOffsetAlignment;
 
@@ -105,26 +111,57 @@ class PlyLoader {
 
     handleFiles(files) {
         if (files.length > 0) {
-            this.hasNewPly = true;
-            const file = files[0];
-            console.log("loading ply file: " + file.name);
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const content = e.target.result;
-                try {
-                    await this.parsePLYFile(content);
-                    this.newPlyReady = true;
-                } catch (error) {
-                    this.newPlyReady = false;
-                    console.error('Error parsing PLY file:', error);
+            let pPly = -1;
+            let pPt = -1;
+            for (let i = 0; i < files.length; i++) {
+                const fileName = files[i].name.toLowerCase();
+                const fileExtension = fileName.substring(fileName.lastIndexOf('.') + 1);
+                if (fileExtension === 'ply' && pPly === -1) {
+                    pPly = i;
+                } else if (fileExtension === 'pt' && pPt === -1) {
+                    pPt = i;
                 }
-            };
-            reader.onerror = (e) => {
-                this.hasNewPly = false;
-                console.error('fail to load file:', e);
-            };
-            reader.readAsArrayBuffer(file);
+                if (pPly !== -1 && pPt !== -1) {
+                    break;
+                }
+            }
+
+            if (pPly >= 0) {   // read PLY
+                console.log("loading ply file: " + files[pPly].name);
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const content = e.target.result;
+                    try {
+                        await this.parsePLYFile(content);
+                        this.newPlyReady = true;
+                    } catch (error) {
+                        this.newPlyReady = false;
+                        console.error('Error parsing PLY file:', error);
+                    }
+                };
+                reader.onerror = (e) => {
+                    console.error('Error parsing PLY file:', error);
+                };
+                reader.readAsArrayBuffer(files[pPly]);
+            }
+            if (pPt >= 0) {  // read PT
+                console.log("loading pt file: " + files[pPt].name);
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const content = e.target.result;
+                    try {
+                        await this.parsePTFile(content);
+                        this.newPtReady = true;
+                    } catch (error) {
+                        this.newPtReady = false;
+                        console.error('Error parsing PT file:', error);
+                    }
+                };
+                reader.onerror = (e) => {
+                    console.error('Error parsing PT file:', error);
+                };
+                reader.readAsArrayBuffer(files[pPt]);
+            }
         }
     }
 
@@ -135,8 +172,10 @@ class PlyLoader {
         const [header] = contentStart.split('end_header');
 
         this.parseHeader(header);
-        if (this.pointCount > PlyLoader.MAX_SPLAT_COUNT) {
-            throw new Error(`point count ${this.pointCount} is bigger than PlyLoader.MAX_SPLAT_COUNT = 2**23`);
+        if (this.pointCount > GlobalVar.MAX_SPLAT_COUNT) {
+            throw new Error(`point count ${this.pointCount} is bigger than MAX_SPLAT_COUNT = 2**23`);
+        } else if (this.pointCount <= 0) {
+            throw new Error(`point count ${this.pointCount} is less or equal to zero`);
         }
         console.log(`headerEnd ${headerEnd} `);
         const floatArray = this.parseBinaryData(arrayBuffer, headerEnd);
@@ -192,12 +231,15 @@ class PlyLoader {
                 }
             } else if (word === "format") {
                 if (words[1] !== "binary_little_endian") {
-                    this.hasNewPly = false;
                     throw new Error("ply file only supports binary_little_endian");
                 }
             }
         }
 
+        this.updatePlyOffsets_Func[GlobalVar.MODE](offsets);
+    }
+
+    updatePlyoffsets_3DGS(offsets) {
         this.ply_offsets[0] = (offsets.get("x") / 4)>>>0;
         this.ply_offsets[1] = (offsets.get("y") / 4)>>>0;
         this.ply_offsets[2] = (offsets.get("z") / 4)>>>0;
@@ -219,17 +261,64 @@ class PlyLoader {
         this.ply_offsets[58] = (offsets.get("opacity") / 4)>>>0;
         this.ply_offsets[59] = (this.offset / 4)>>>0;
     }
-    parseBinaryData(arrayBuffer, headerEnd) {
-        if (this.pointCount === 0) {
-            this.hasNewPly = false;
-            return;
+
+    updatePlyoffsets_SpaceTime_FULL(offsets) {
+        this.ply_offsets[0] = (offsets.get("x") / 4)>>>0;
+        this.ply_offsets[1] = (offsets.get("y") / 4)>>>0;
+        this.ply_offsets[2] = (offsets.get("z") / 4)>>>0;
+        this.ply_offsets[3] = (offsets.get("scale_0") / 4)>>>0;
+        this.ply_offsets[4] = (offsets.get("scale_1") / 4)>>>0;
+        this.ply_offsets[5] = (offsets.get("scale_2") / 4)>>>0;
+        this.ply_offsets[6] = (offsets.get("rot_1") / 4)>>>0;
+        this.ply_offsets[7] = (offsets.get("rot_2") / 4)>>>0;
+        this.ply_offsets[8] = (offsets.get("rot_3") / 4)>>>0;
+        this.ply_offsets[9] = (offsets.get("rot_0") / 4)>>>0;
+        this.ply_offsets[10 + 0] = (offsets.get("f_dc_0") / 4)>>>0;
+        this.ply_offsets[10 + 16] = (offsets.get("f_dc_1") / 4)>>>0;
+        this.ply_offsets[10 + 32] = (offsets.get("f_dc_2") / 4)>>>0;
+        for (let i = 0; i < 15; ++i) {
+            this.ply_offsets[10 + 1 + i] =  (offsets.get("f_rest_" + (i)) / 4)>>>0;
+            this.ply_offsets[10 + 17 + i] = (offsets.get("f_rest_" + (15 + i)) / 4)>>>0;
+            this.ply_offsets[10 + 33 + i] = (offsets.get("f_rest_" + (30 + i)) / 4)>>>0;
         }
+        this.ply_offsets[58] = (offsets.get("opacity") / 4)>>>0;
+        this.ply_offsets[59] = (this.offset / 4)>>>0;
+    }
+
+    updatePlyoffsets_SpaceTime_LITE(offsets) {
+        this.ply_offsets[0] = (offsets.get("x") / 4)>>>0;
+        this.ply_offsets[1] = (offsets.get("y") / 4)>>>0;
+        this.ply_offsets[2] = (offsets.get("z") / 4)>>>0;
+        this.ply_offsets[3] = (offsets.get("scale_0") / 4)>>>0;
+        this.ply_offsets[4] = (offsets.get("scale_1") / 4)>>>0;
+        this.ply_offsets[5] = (offsets.get("scale_2") / 4)>>>0;
+        this.ply_offsets[6] = (offsets.get("rot_1") / 4)>>>0;
+        this.ply_offsets[7] = (offsets.get("rot_2") / 4)>>>0;
+        this.ply_offsets[8] = (offsets.get("rot_3") / 4)>>>0;
+        this.ply_offsets[9] = (offsets.get("rot_0") / 4)>>>0;
+        this.ply_offsets[10 + 0] = (offsets.get("f_dc_0") / 4)>>>0;
+        this.ply_offsets[10 + 16] = (offsets.get("f_dc_1") / 4)>>>0;
+        this.ply_offsets[10 + 32] = (offsets.get("f_dc_2") / 4)>>>0;
+        for (let i = 0; i < 15; ++i) {
+            this.ply_offsets[10 + 1 + i] =  (offsets.get("f_rest_" + (i)) / 4)>>>0;
+            this.ply_offsets[10 + 17 + i] = (offsets.get("f_rest_" + (15 + i)) / 4)>>>0;
+            this.ply_offsets[10 + 33 + i] = (offsets.get("f_rest_" + (30 + i)) / 4)>>>0;
+        }
+        this.ply_offsets[58] = (offsets.get("opacity") / 4)>>>0;
+        this.ply_offsets[59] = (this.offset / 4)>>>0;
+    }
+
+    parseBinaryData(arrayBuffer, headerEnd) {
         const floatArray = new Float32Array(arrayBuffer.slice(headerEnd), 0, this.offset / 4 * this.pointCount);
         //console.log(floatArray);
         return floatArray;
     }
 
-    dispatchSize(workgroup_size) {
+    async parsePTFile() {
+
+    }
+
+    dispatchSize(workgroup_size) {  // check correctness
         return PlyLoader.RoundUp(this.pointCount, workgroup_size);
     }
 }
