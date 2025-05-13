@@ -39,11 +39,13 @@ async function main() {
 	const guiContent = {
 		fps: 0,
 		camera: 'arcball',
-		gaussian: '3DGS',
+		gaussian: 'SpaceTime_LITE',
 		scaleModifier: 1.0,
 		frustumDilation: 0.1,
 		alphaCullingThreshold: 0.0,
 		visibleNum: `0/0 0%`,
+		timer: 0.0,
+		pause: false,
 	};
 	// Callback handler for camera mode
 	let oldCameraType = guiContent.camera;
@@ -62,6 +64,8 @@ async function main() {
 	gui.add(guiContent, 'scaleModifier').min(0.1).max(1.5).step(0.01);
 	gui.add(guiContent, 'frustumDilation').min(0.0).max(1.0).step(0.01);
 	gui.add(guiContent, 'alphaCullingThreshold').min(0.0).max(1.0).step(0.01);
+	gui.add(guiContent, 'timer').min(0.0).max(1.0).step(0.01).listen();
+	gui.add(guiContent, 'pause');
 
 	/**
 	 * RESOURCE
@@ -111,20 +115,27 @@ async function main() {
         	frameCount = 0;
         	lastFPSMS = now;
 		}
+		if (!guiContent.pause) {
+			guiContent.timer += deltaTime;
+		}
+		if (guiContent.timer > 1.0) {
+			guiContent.timer = 0.0;
+		}
 
 		cameras.updateCameraUniform( {
 				scaleModifier: guiContent.scaleModifier,
 				frustumDilation: guiContent.frustumDilation,
 				alphaCullingThreshold: guiContent.alphaCullingThreshold,
+				timer: guiContent.timer,
 			}, deltaTime, inputHandler());
 
 		const commandEncoder = gpuDevice.device.createCommandEncoder();
 		if (plyLoader.newPlyReady) {
 			plyLoader.gpuCopy(commandEncoder);
 			const computePass = commandEncoder.beginComputePass({label: "ply"});
-			computePass.setPipeline(gsRenderer.pipeline.parsePly);
+			computePass.setPipeline(gsRenderer.pipeline[GlobalVar.MODE].parsePly);
 			computePass.setBindGroup(0, cameras.bindGroup);
-			computePass.setBindGroup(1, gsRenderer.bindGroup.set1);
+			computePass.setBindGroup(1, gsRenderer.bindGroup[GlobalVar.MODE].set1);
 			computePass.setBindGroup(3, plyLoader.bindGroup);
 			computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 			computePass.end();
@@ -137,11 +148,11 @@ async function main() {
 			{	// rank
 				commandEncoder.clearBuffer(gsRenderer.set3.visibleNum, 0, 4);
 				const computePass = commandEncoder.beginComputePass({label: "rank"});
-				computePass.setPipeline(gsRenderer.pipeline.rank);
+				computePass.setPipeline(gsRenderer.pipeline[GlobalVar.MODE].rank);
 				computePass.setBindGroup(0, cameras.bindGroup);
-				computePass.setBindGroup(1, gsRenderer.bindGroup_read.set1);
-				computePass.setBindGroup(2, gsRenderer.bindGroup.set2);
-				computePass.setBindGroup(3, gsRenderer.bindGroup.set3);
+				computePass.setBindGroup(1, gsRenderer.bindGroup_read[GlobalVar.MODE].set1);
+				computePass.setBindGroup(2, gsRenderer.bindGroup[GlobalVar.MODE].set2);
+				computePass.setBindGroup(3, gsRenderer.bindGroup[GlobalVar.MODE].set3);
 				computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 				computePass.end();
 				commandEncoder.copyBufferToBuffer(gsRenderer.set3.visibleNum, 0, gsRenderer.set_other.indirect, 4, 4);
@@ -156,20 +167,20 @@ async function main() {
 				renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
 
 				const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
-				renderPass.setPipeline(gsRenderer.pipeline.splat);
+				renderPass.setPipeline(gsRenderer.pipeline[GlobalVar.MODE].splat);
 				renderPass.setBindGroup(0, cameras.bindGroup);
-				renderPass.setBindGroup(1, gsRenderer.bindGroup_read.set1);
-				renderPass.setBindGroup(2, gsRenderer.bindGroup_read.set2);
+				renderPass.setBindGroup(1, gsRenderer.bindGroup_read[GlobalVar.MODE].set1);
+				renderPass.setBindGroup(2, gsRenderer.bindGroup_read[GlobalVar.MODE].set2);
 				renderPass.setIndexBuffer(indexBuffer, "uint32");
 				renderPass.drawIndexedIndirect(gsRenderer.set_other.indirect, 0);
 				renderPass.end();
 			} else {	// debug
 				const computePass = commandEncoder.beginComputePass({label: "debug"});
-				computePass.setPipeline(gsRenderer.pipeline.debug);
+				computePass.setPipeline(gsRenderer.pipeline[GlobalVar.MODE].debug);
 				computePass.setBindGroup(0, cameras.bindGroup);
-				computePass.setBindGroup(1, gsRenderer.bindGroup.set1);
-				computePass.setBindGroup(2, gsRenderer.bindGroup.set2);
-				computePass.setBindGroup(3, gsRenderer.bindGroup_debug.set3);
+				computePass.setBindGroup(1, gsRenderer.bindGroup[GlobalVar.MODE].set1);
+				computePass.setBindGroup(2, gsRenderer.bindGroup[GlobalVar.MODE].set2);
+				computePass.setBindGroup(3, gsRenderer.bindGroup_debug[GlobalVar.MODE].set3);
 				computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 				computePass.end();
 				copy2host(commandEncoder, gsRenderer.set_other.debug, 0, 4);

@@ -1,7 +1,10 @@
-import parse_ply_comp_wgsl from './shaders/parse_ply_comp_wgsl.js';
-import rank_comp_wgsl from './shaders/rank_comp_wgsl.js';
-import splat_wgsl from './shaders/splat_wgsl.js';
-import splat_debug from './shaders/splat_debug.js';
+import parse_ply_comp_wgsl from './shaders/parse_ply_comp.js';
+import rank_comp_wgsl from './shaders/rank_comp.js';
+import splat_wgsl from './shaders/splat.js';
+import parse_ply_comp_4dgs_wgsl from './shaders/parse_ply_comp_4dgs.js';
+import rank_comp_4dgs_wgsl from './shaders/rank_comp_4dgs.js';
+import splat_4dgs_wgsl from './shaders/splat_4dgs.js';
+import splat_debug_wgsl from './shaders/splat_debug.js';
 import { GlobalVar } from "./Global.js";
 
 class GSRenderer {
@@ -28,42 +31,94 @@ class GSRenderer {
         };
 
         this.bindGroup = {
-            'set1': null,
-            'set2': null,
-            'set3': null,
+            'MODE_3DGS': {
+                'set1': null,
+                'set2': null,
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set1': null,
+                'set2': null,
+                'set3': null,
+            }
         }
         this.bindGroupLayout = {
-            'set1': null,
-            'set2': null,
-            'set3': null,
+            'MODE_3DGS': {
+                'set1': null,
+                'set2': null,
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set1': null,
+                'set2': null,
+                'set3': null,
+            }
         }
         this.bindGroup_read = {
-            'set2': null,
-            'set3': null,
+            'MODE_3DGS': {
+                'set2': null,
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set2': null,
+                'set3': null,
+            }
         }
         this.bindGroupLayout_read = {
-            'set2': null,
-            'set3': null,
+            'MODE_3DGS': {
+                'set2': null,
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set2': null,
+                'set3': null,
+            }
         }
         this.bindGroup_debug = {
-            'set3': null
+            'MODE_3DGS': {
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set3': null,
+            }
         }
         this.bindGroupLayout_debug = {
-            'set3': null
+            'MODE_3DGS': {
+                'set3': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'set3': null,
+            }
         }
 
         this.presentationFormat = null;
         this.pipeline = {
-            'parsePly': null,
-            'rank': null,
-            'splat': null,
-            'debug': null
+            'MODE_3DGS': {
+                'parsePly': null,
+                'rank': null,
+                'splat': null,
+                'debug': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'parsePly': null,
+                'rank': null,
+                'splat': null,
+                'debug': null,
+            },
         };
         this.pipelineLayout = {
-            'parsePly': null,
-            'rank': null,
-            'splat': null,
-            'debug': null
+            'MODE_3DGS': {
+                'parsePly': null,
+                'rank': null,
+                'splat': null,
+                'debug': null,
+            },
+            'MODE_SpaceTime_LITE': {
+                'parsePly': null,
+                'rank': null,
+                'splat': null,
+                'debug': null,
+            },
         };
 
         this.preAllocate();
@@ -119,7 +174,10 @@ class GSRenderer {
     }
 
     createBindGroup() {
-        this.bindGroupLayout.set1 = this.device.createBindGroupLayout({
+        /**
+         * MODE_3DGS
+         */
+        this.bindGroupLayout.MODE_3DGS.set1 = this.device.createBindGroupLayout({
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -143,8 +201,9 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup.set1 = this.device.createBindGroup({
-            layout: this.bindGroupLayout.set1,
+        this.bindGroup.MODE_3DGS.set1 = this.device.createBindGroup({
+            label: `MODE_3DGS.set1`,
+            layout: this.bindGroupLayout.MODE_3DGS.set1,
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -173,7 +232,7 @@ class GSRenderer {
             ],
         });
 
-        this.bindGroupLayout.set2 = this.device.createBindGroupLayout({
+        this.bindGroupLayout.MODE_3DGS.set2 = this.device.createBindGroupLayout({
             entries: [
                 {   // set2.key
                     binding: 0,
@@ -187,8 +246,9 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup.set2 = this.device.createBindGroup({
-            layout: this.bindGroupLayout.set2,
+        this.bindGroup.MODE_3DGS.set2 = this.device.createBindGroup({
+            label: `MODE_3DGS.set2`,
+            layout: this.bindGroupLayout.MODE_3DGS.set2,
             entries: [
                 {   // set2.key
                     binding: 0,
@@ -205,7 +265,7 @@ class GSRenderer {
             ],
         });
 
-        this.bindGroupLayout.set3 = this.device.createBindGroupLayout({
+        this.bindGroupLayout.MODE_3DGS.set3 = this.device.createBindGroupLayout({
             entries: [
                 {   // set3.indirect
                     binding: 0,
@@ -214,8 +274,9 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup.set3 = this.device.createBindGroup({
-            layout: this.bindGroupLayout.set3,
+        this.bindGroup.MODE_3DGS.set3 = this.device.createBindGroup({
+            label: `MODE_3DGS.set3`,
+            layout: this.bindGroupLayout.MODE_3DGS.set3,
             entries: [
                 {   // set3.indirect
                     binding: 0,
@@ -227,7 +288,7 @@ class GSRenderer {
         });
 
         if (GlobalVar.DEBUG) {
-            this.bindGroupLayout_debug.set3 = this.device.createBindGroupLayout({
+            this.bindGroupLayout_debug.MODE_3DGS.set3 = this.device.createBindGroupLayout({
                 entries: [
                     {   // set other debug
                         binding: 0,
@@ -236,8 +297,9 @@ class GSRenderer {
                     },
                 ],
             });
-            this.bindGroup_debug.set3 = this.device.createBindGroup({
-                layout: this.bindGroupLayout_debug.set3,
+            this.bindGroup_debug.MODE_3DGS.set3 = this.device.createBindGroup({
+                label: `debug.MODE_3DGS.set3`,
+                layout: this.bindGroupLayout_debug.MODE_3DGS.set3,
                 entries: [
                     {   // set other debug
                         binding: 0,
@@ -249,7 +311,7 @@ class GSRenderer {
             });
         }
 
-        this.bindGroupLayout_read.set1 = this.device.createBindGroupLayout({
+        this.bindGroupLayout_read.MODE_3DGS.set1 = this.device.createBindGroupLayout({
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -273,8 +335,9 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup_read.set1 = this.device.createBindGroup({
-            layout: this.bindGroupLayout_read.set1,
+        this.bindGroup_read.MODE_3DGS.set1 = this.device.createBindGroup({
+            label: `read.MODE_3DGS.set1`,
+            layout: this.bindGroupLayout_read.MODE_3DGS.set1,
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -303,7 +366,7 @@ class GSRenderer {
             ],
         });
 
-        this.bindGroupLayout_read.set2 = this.device.createBindGroupLayout({
+        this.bindGroupLayout_read.MODE_3DGS.set2 = this.device.createBindGroupLayout({
             entries: [
                 {   // set2.key
                     binding: 0,
@@ -317,8 +380,9 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup_read.set2 = this.device.createBindGroup({
-            layout: this.bindGroupLayout_read.set2,
+        this.bindGroup_read.MODE_3DGS.set2 = this.device.createBindGroup({
+            label: `read.MODE_3DGS.set2`,
+            layout: this.bindGroupLayout_read.MODE_3DGS.set2,
             entries: [
                 {   // set2.key
                     binding: 0,
@@ -334,18 +398,235 @@ class GSRenderer {
                 },
             ],
         });
+
+        /**
+         * MODE_SpaceTime_LITE
+         */
+        const maxCount = GlobalVar.MAX_SPLAT_COUNT;
+        this.bindGroupLayout.MODE_SpaceTime_LITE.set1 = this.device.createBindGroupLayout({
+            entries: [
+                {   // set1.pos => pos3
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.cov3d => rest_feature6
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.color => feature3 | opacity1
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.sh => motion9
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.sh => scale3
+                    binding: 4,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.sh => rot_omega8
+                    binding: 5,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {   // set1.sh => trbf_center1 | trbf_scale1
+                    binding: 6,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+            ],
+        });
+        this.bindGroup.MODE_SpaceTime_LITE.set1 = this.device.createBindGroup({
+            layout: this.bindGroupLayout.MODE_SpaceTime_LITE.set1,
+            entries: [
+                {   // set1.pos => pos3
+                    binding: 0,
+                    resource: {
+                        buffer: this.set1.pos,
+                    },
+                },
+                {   // set1.cov3d => rest_feature6
+                    binding: 1,
+                    resource: {
+                        buffer: this.set1.cov3d,
+                    },
+                },
+                {   // set1.color => feature3 | opacity1
+                    binding: 2,
+                    resource: {
+                        buffer: this.set1.color,
+                    },
+                },
+                {   // set1.sh => motion9
+                    binding: 3,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: 0,
+                        size: maxCount * 9,
+                    },
+                },
+                {   // set1.sh => scale3
+                    binding: 4,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 9,
+                        size: maxCount * 3,
+                    },
+                },
+                {   // set1.sh => rot_omega8
+                    binding: 5,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 12,
+                        size: maxCount * 8,
+                    },
+                },
+                {   // set1.sh => trbf_center1 | trbf_scale1
+                    binding: 6,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 20,
+                        size: maxCount * 2,
+                    },
+                },
+            ],
+        });
+
+        this.bindGroupLayout.MODE_SpaceTime_LITE.set2 = this.bindGroupLayout.MODE_3DGS.set2;
+        this.bindGroup.MODE_SpaceTime_LITE.set2 = this.bindGroup.MODE_3DGS.set2;
+
+        this.bindGroupLayout.MODE_SpaceTime_LITE.set3 = this.bindGroupLayout.MODE_3DGS.set3;
+        this.bindGroup.MODE_SpaceTime_LITE.set3 = this.bindGroup.MODE_3DGS.set3;
+
+        if (GlobalVar.DEBUG) {
+            this.bindGroupLayout_debug.MODE_SpaceTime_LITE.set3 = this.bindGroupLayout_debug.MODE_3DGS.set3;
+            this.bindGroup_debug.MODE_SpaceTime_LITE.set3 = this.bindGroup_debug.MODE_3DGS.set3;
+        }
+
+        this.bindGroupLayout_read.MODE_SpaceTime_LITE.set1 = this.device.createBindGroupLayout({
+            label: `read.MODE_SpaceTime_LITE.set1`, 
+            entries: [
+                {   // set1.pos => pos3
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.cov3d => rest_feature6
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.color => feature3 | opacity1
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.sh => motion9
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.sh => scale3
+                    binding: 4,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.sh => rot_omega8
+                    binding: 5,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.sh => trbf_center1 | trbf_scale1
+                    binding: 6,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+            ],
+        });
+        this.bindGroup_read.MODE_SpaceTime_LITE.set1 = this.device.createBindGroup({
+            label: `read.MODE_SpaceTime_LITE.set1`, 
+            layout: this.bindGroupLayout_read.MODE_SpaceTime_LITE.set1,
+            entries: [
+                {   // set1.pos => pos3
+                    binding: 0,
+                    resource: {
+                        buffer: this.set1.pos,
+                    },
+                },
+                {   // set1.cov3d => rest_feature6
+                    binding: 1,
+                    resource: {
+                        buffer: this.set1.cov3d,
+                    },
+                },
+                {   // set1.color => feature3 | opacity1
+                    binding: 2,
+                    resource: {
+                        buffer: this.set1.color,
+                    },
+                },
+                {   // set1.sh => motion9
+                    binding: 3,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: 0,
+                        size: maxCount * 9,
+                    },
+                },
+                {   // set1.sh => scale3
+                    binding: 4,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 9,
+                        size: maxCount * 3,
+                    },
+                },
+                {   // set1.sh => rot_omega8
+                    binding: 5,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 12,
+                        size: maxCount * 8,
+                    },
+                },
+                {   // set1.sh => trbf_center1 | trbf_scale1
+                    binding: 6,
+                    resource: {
+                        buffer: this.set1.sh,
+                        offset: maxCount * 20,
+                        size: maxCount * 2,
+                    },
+                },
+            ],
+        });
+
+        this.bindGroupLayout_read.MODE_SpaceTime_LITE.set2 = this.bindGroupLayout_read.MODE_3DGS.set2;
+        this.bindGroup_read.MODE_SpaceTime_LITE.set2 = this.bindGroup_read.MODE_3DGS.set2;
+
     }
 
     createPipeline(bindGroupLayout0, bindGroupLayout3) {
+        this.createPipeline_(`MODE_3DGS`, bindGroupLayout0, bindGroupLayout3);
+        this.createPipeline_(`MODE_SpaceTime_LITE`, bindGroupLayout0, bindGroupLayout3);
+    }
+
+    createPipeline_(type, bindGroupLayout0, bindGroupLayout3) {
+        let is4dgs = (type !== `MODE_3DGS`);
         {   // parsePly
-            this.pipelineLayout.parsePly = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout.set1, null, bindGroupLayout3],
+            this.pipelineLayout[type].parsePly = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout[type].set1, null, bindGroupLayout3],
             });
             const shaderModule = this.device.createShaderModule({
-                code: parse_ply_comp_wgsl,
+                code: is4dgs ? parse_ply_comp_4dgs_wgsl : parse_ply_comp_wgsl,
             });
-            this.pipeline.parsePly = this.device.createComputePipeline({
-                layout: this.pipelineLayout.parsePly,
+            this.pipeline[type].parsePly = this.device.createComputePipeline({
+                layout: this.pipelineLayout[type].parsePly,
                 compute: {
                     module: shaderModule,
                     entryPoint: "main",
@@ -353,14 +634,14 @@ class GSRenderer {
             });
         }
         {   // rank
-            this.pipelineLayout.rank = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read.set1, this.bindGroupLayout.set2, this.bindGroupLayout.set3],
+            this.pipelineLayout[type].rank = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read[type].set1, this.bindGroupLayout[type].set2, this.bindGroupLayout[type].set3],
             });
             const shaderModule = this.device.createShaderModule({
-                code: rank_comp_wgsl,
+                code: is4dgs ? rank_comp_4dgs_wgsl : rank_comp_wgsl,
             });
-            this.pipeline.rank = this.device.createComputePipeline({
-                layout: this.pipelineLayout.rank,
+            this.pipeline[type].rank = this.device.createComputePipeline({
+                layout: this.pipelineLayout[type].rank,
                 compute: {
                     module: shaderModule,
                     entryPoint: "main",
@@ -368,14 +649,14 @@ class GSRenderer {
             });
         }
         if (GlobalVar.DEBUG) {  // debug splat
-            this.pipelineLayout.debug = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout.set1, this.bindGroupLayout.set2, this.bindGroupLayout_debug.set3],
+            this.pipelineLayout[type].debug = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout[type].set1, this.bindGroupLayout[type].set2, this.bindGroupLayout_debug[type].set3],
             });
             const shaderModule = this.device.createShaderModule({
-                code: splat_debug,
+                code: splat_debug_wgsl,
             });
-            this.pipeline.debug = this.device.createComputePipeline({
-                layout: this.pipelineLayout.debug,
+            this.pipeline[type].debug = this.device.createComputePipeline({
+                layout: this.pipelineLayout[type].debug,
                 compute: {
                     module: shaderModule,
                     entryPoint: "main",
@@ -383,15 +664,15 @@ class GSRenderer {
             });
         }
         {   // splat
-            this.pipelineLayout.splat = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read.set1, this.bindGroupLayout_read.set2,],
+            this.pipelineLayout[type].splat = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read[type].set1, this.bindGroupLayout_read[type].set2,],
             });
-            this.pipeline.splat = this.device.createRenderPipeline({
-                layout: this.pipelineLayout.splat,
+            this.pipeline[type].splat = this.device.createRenderPipeline({
+                layout: this.pipelineLayout[type].splat,
                 fragment: {
                     entryPoint: "frag_main",
                     module: this.device.createShaderModule({
-                        code: splat_wgsl,
+                        code: is4dgs ? splat_4dgs_wgsl : splat_wgsl,
                     }),
                     targets: [
                         {
@@ -419,7 +700,7 @@ class GSRenderer {
                 vertex: {
                     entryPoint: "vert_main",
                     module: this.device.createShaderModule({
-                        code: splat_wgsl,
+                        code: is4dgs ? splat_4dgs_wgsl : splat_wgsl,
                     }),
                 }
             });

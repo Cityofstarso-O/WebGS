@@ -299,7 +299,7 @@ export class Camera extends CameraBase {
 	}
 
 	createCameraUniformBuffer() {
-		const bufferSize = Camera.AlignUp(180, 16);
+		const bufferSize = Camera.AlignUp(184, 16);
 		const buffer = new ArrayBuffer(bufferSize);
 		const dataView = new DataView(buffer);
 	  
@@ -317,6 +317,7 @@ export class Camera extends CameraBase {
 				scaleModifier: { offset: 168, size: 4},
 				frustumDilation: { offset: 172, size: 4},
 				alphaCullingThreshold: { offset: 176, size: 4},
+				timer: { offset: 180, size: 4 },
 			}
 		};
 
@@ -383,6 +384,7 @@ export class Camera extends CameraBase {
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.scaleModifier.offset, param.scaleModifier, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.frustumDilation.offset, param.frustumDilation, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.alphaCullingThreshold.offset, param.alphaCullingThreshold, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.timer.offset, param.timer, true);
 	}
 
 	updatePointCnt(pointCnt) {

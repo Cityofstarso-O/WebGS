@@ -1,5 +1,5 @@
 const GlobalVar = {
-    MODE: "MODE_3DGS",
+    MODE: "MODE_SpaceTime_LITE",
     MAX_SPLAT_COUNT: 2**23,
     DEBUG: false,
     DEBUG_BUFFER: null,
