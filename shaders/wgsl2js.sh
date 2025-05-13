@@ -1,19 +1,14 @@
-echo "const parse_ply_comp_wgsl = \`" > ./parse_ply_comp_wgsl.js
-cat ./parse_ply_comp.wgsl >> ./parse_ply_comp_wgsl.js
-echo "\`;" >> ./parse_ply_comp_wgsl.js
-echo "export default parse_ply_comp_wgsl;" >> ./parse_ply_comp_wgsl.js
+#!/bin/bash
 
-echo "const rank_comp_wgsl = \`" > ./rank_comp_wgsl.js
-cat ./rank_comp.wgsl >> ./rank_comp_wgsl.js
-echo "\`;" >> ./rank_comp_wgsl.js
-echo "export default rank_comp_wgsl;" >> ./rank_comp_wgsl.js
+for file in *.wgsl; do
+    filename=$(basename -- "$file" .wgsl)
+    
+    echo "const ${filename}_wgsl = \`" > "./${filename}.js"
+    cat "$file" >> "./${filename}.js"
+    echo "\`;" >> "./${filename}.js"
+    echo "export default ${filename}_wgsl;" >> "./${filename}.js"
+    
+    echo "Generated ${filename}.js"
+done
 
-echo "const splat_wgsl = \`" > ./splat_wgsl.js
-cat ./splat.wgsl >> ./splat_wgsl.js
-echo "\`;" >> ./splat_wgsl.js
-echo "export default splat_wgsl;" >> ./splat_wgsl.js
-
-echo "const splat_debug = \`" > ./splat_debug.js
-cat ./splat_debug.wgsl >> ./splat_debug.js
-echo "\`;" >> ./splat_debug.js
-echo "export default splat_debug;" >> ./splat_debug.js
+echo "All .wgsl files have been processed."

@@ -1,4 +1,4 @@
-const splat_debug = `
+const splat_debug_wgsl = `
 enable f16;
 
 @group(0) @binding(0) var<uniform> Camera : CameraInfo;
@@ -34,4 +34,4 @@ fn main (
     // debug code here
     
 }`;
-export default splat_debug;
+export default splat_debug_wgsl;
