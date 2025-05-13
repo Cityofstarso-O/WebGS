@@ -1,5 +1,6 @@
 import { mat4, vec3 } from 'https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js';
 import Input from './input.js';
+import { GlobalVar } from "./Global.js";
 
 // The common functionality between camera implementations
 class CameraBase {
@@ -129,8 +130,8 @@ export class WASDCamera extends CameraBase {
 		const sign = (positive, negative) => (positive ? 1 : 0) - (negative ? 1 : 0);
 
 		// Apply the delta rotation to the pitch and yaw angles
-		this.yaw -= input.analog.x * deltaTime * this.rotationSpeed;
-		this.pitch -= input.analog.y * deltaTime * this.rotationSpeed;
+		this.yaw += input.analog.x * deltaTime * this.rotationSpeed;
+		this.pitch += input.analog.y * deltaTime * this.rotationSpeed;
 
 		// Wrap yaw between [0° .. 360°], just to prevent large accumulation.
 		this.yaw = mod(this.yaw, Math.PI * 2);
@@ -230,8 +231,8 @@ export class ArcballCamera extends CameraBase {
 
 		// Calculate the movement vector
 		const movement = vec3.create();
-		vec3.addScaled(movement, this.right, input.analog.x, movement);
-		vec3.addScaled(movement, this.up, -input.analog.y, movement);
+		vec3.addScaled(movement, this.right, -input.analog.x, movement);
+		vec3.addScaled(movement, this.up, input.analog.y, movement);
 
 		// Cross the movement vector with the view direction to calculate the rotation axis x magnitude
 		const crossProduct = vec3.cross(movement, this.back);
@@ -289,11 +290,10 @@ export class Camera extends CameraBase {
 		};
 
 		this.type = null;
-		this.canvas = canvas;
-		this.aspect = this.canvas.clientWidth / this.canvas.clientHeight;
-		this.projectionMatrix = mat4.perspective((2 * Math.PI) / 5, this.aspect, 1, 100.0);
-		this.devicePixelRatio = devicePixelRatio;
 		this.device = device;
+		this.canvas = canvas;
+		this.aspect = 0;
+		this.devicePixelRatio = devicePixelRatio;
 		this.updateCanvas();
 		this.createCameraUniformBuffer();
 	}
@@ -320,9 +320,10 @@ export class Camera extends CameraBase {
 			}
 		};
 
+		const DEBUG_FLAG = GlobalVar ? GPUBufferUsage.COPY_SRC : 0;
 		this.cameraUniformBuffer = this.device.createBuffer({
 			size: bufferSize,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | DEBUG_FLAG,
 		});
 	}
 
@@ -354,29 +355,31 @@ export class Camera extends CameraBase {
 		const width = this.canvas.clientWidth * this.devicePixelRatio;
 		const height = this.canvas.clientHeight * this.devicePixelRatio;
 		if (aspect !== this.aspect) {
-			//this.updateCanvas();
+			this.updateCanvas();
 			this.aspect = aspect;
-			this.projectionMatrix = mat4.perspective((2 * Math.PI) / 5, this.aspect, 1, 100.0);
+			this.projectionMatrix = mat4.perspective((2 * Math.PI) / 6, this.aspect, 0.1, 2000.0);
+			this.projectionMatrix[5] *= -1;
+			this.projectionMatrix[0] *= -1;
 			for (let i = 0; i < 16; ++i) {
 			  	this.uniformHost.view.setFloat32(this.uniformHost.mem.proj.offset + i * 4, this.projectionMatrix[i], true);
 			}
 		}
-		const focalX =this.projectionMatrix[0] * 0.5 * this.devicePixelRatio * this.canvas.clientWidth;
-		const focalY =this.projectionMatrix[5] * 0.5 * this.devicePixelRatio * this.canvas.clientHeight;
+		const focalX =this.projectionMatrix[0] * 0.5 * width;
+		const focalY =this.projectionMatrix[5] * 0.5 * height;
 	  	const viewMatrix = this.update(deltaTime, input);
 		for (let i = 0; i < 16; ++i) {
 		  	this.uniformHost.view.setFloat32(this.uniformHost.mem.view.offset + i * 4, viewMatrix[i], true);
 		}
 	  
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[0], true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[1], true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[2], true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset + 4, this.position[1], true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset + 8, this.position[2], true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.focal.offset, focalX, true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.focal.offset, focalY, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.focal.offset + 4, focalY, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.viewport.offset, width, true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.viewport.offset, height, true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset, 1.0 / this.canvas.clientWidth, true);
-		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset, 1.0 / this.canvas.clientHeight, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.viewport.offset + 4, height, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset, 1.0 / width, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset + 4, 1.0 / height, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.scaleModifier.offset, param.scaleModifier, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.frustumDilation.offset, param.frustumDilation, true);
 		this.uniformHost.view.setFloat32(this.uniformHost.mem.alphaCullingThreshold.offset, param.alphaCullingThreshold, true);
@@ -398,24 +401,9 @@ export class Camera extends CameraBase {
 		return this.cameras[this.type].update(deltaTime, input);
 	}
 
-	// do not update Canvas in render loop, just update projMat is fine
-	// use this only once when init Camera
 	updateCanvas() {
 		this.canvas.width  = this.canvas.clientWidth *  this.devicePixelRatio;
 		this.canvas.height = this.canvas.clientHeight * this.devicePixelRatio;
-	}
-
-	getMVPMat_test(deltaTime, input) {
-		const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
-		if (aspect !== this.aspect) {
-			//this.updateCanvas();
-			this.aspect = aspect;
-			this.projectionMatrix = mat4.perspective((2 * Math.PI) / 5, this.aspect, 1, 100.0);
-		}
-	  	const viewMatrix = this.update(deltaTime, input);
-		const modelViewProjectionMatrix = mat4.create();
-	  	mat4.multiply(this.projectionMatrix, viewMatrix, modelViewProjectionMatrix);
-	  	return modelViewProjectionMatrix;
 	}
 
 	get position() {

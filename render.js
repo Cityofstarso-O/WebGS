@@ -1,4 +1,4 @@
-import { GlobalVar } from "./Global.js";
+import { GlobalVar, copy2host, map2hostf, map2hosti, map2hostu } from "./Global.js";
 import { mat4, vec3 } from 'https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js';
 import { ArcballCamera, WASDCamera, Camera } from './camera.js';
 import { createInputHandler } from './input.js';
@@ -17,7 +17,7 @@ async function main() {
 	const plyLoader = new PlyLoader(gpuDevice.device);
 	const inputHandler = createInputHandler(window, canvas, plyLoader);
 	const gsRenderer = new GSRenderer(gpuDevice.device);
-	const initialCameraPosition = vec3.create(3, 2, 5);
+	const initialCameraPosition = vec3.create(0, 0, -2);
 	const cameras = new Camera(initialCameraPosition, canvas, window.devicePixelRatio, gpuDevice.device);
 	const radixSorter = new RadixSorter(gpuDevice.adapter, gpuDevice.device);
 
@@ -91,7 +91,7 @@ async function main() {
     let frameCount = 0;
 	let lastFPSMS = Date.now();
 	let lastFrameMS = lastFPSMS;
-	function frame() {
+	async function frame() {
 		const now = Date.now();
 		const deltaTime = (now - lastFrameMS) / 1000;
 		lastFrameMS = now;
@@ -139,7 +139,7 @@ async function main() {
 			{	// radix
 				radixSorter.gpuSort(commandEncoder, plyLoader.pointCount, storageBuffer, 0);
 			}
-			{	// splat
+			if (!GlobalVar.DEBUG) {	// splat
 				renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
 
 				const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
@@ -150,11 +150,24 @@ async function main() {
 				renderPass.setIndexBuffer(indexBuffer, "uint32");
 				renderPass.drawIndexedIndirect(gsRenderer.set_other.indirect, 0);
 				renderPass.end();
+			} else {	// debug
+				const computePass = commandEncoder.beginComputePass({label: "debug"});
+				computePass.setPipeline(gsRenderer.pipeline.debug);
+				computePass.setBindGroup(0, cameras.bindGroup);
+				computePass.setBindGroup(1, gsRenderer.bindGroup.set1);
+				computePass.setBindGroup(2, gsRenderer.bindGroup.set2);
+				computePass.setBindGroup(3, gsRenderer.bindGroup_debug.set3);
+				computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
+				computePass.end();
+				copy2host(commandEncoder, gsRenderer.set_other.debug, 0, 4);
 			}
 		}
 		
 		gpuDevice.device.queue.submit([commandEncoder.finish()]);
 
+		if (GlobalVar.DEBUG) {
+			await map2hostf(4);
+		}
 		requestAnimationFrame(frame);
 	}
 	requestAnimationFrame(frame);

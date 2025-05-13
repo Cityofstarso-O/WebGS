@@ -1,6 +1,7 @@
 import parse_ply_comp_wgsl from './shaders/parse_ply_comp_wgsl.js';
 import rank_comp_wgsl from './shaders/rank_comp_wgsl.js';
 import splat_wgsl from './shaders/splat_wgsl.js';
+import splat_debug from './shaders/splat_debug.js';
 import { GlobalVar } from "./Global.js";
 
 class GSRenderer {
@@ -21,7 +22,8 @@ class GSRenderer {
             'visibleNum': null
         };
         this.set_other = {
-            'indirect': null
+            'indirect': null,
+            'debug': null,
         };
 
         this.bindGroup = {
@@ -42,17 +44,25 @@ class GSRenderer {
             'set2': null,
             'set3': null,
         }
+        this.bindGroup_debug = {
+            'set3': null
+        }
+        this.bindGroupLayout_debug = {
+            'set3': null
+        }
 
         this.presentationFormat = null;
         this.pipeline = {
             'parsePly': null,
             'rank': null,
-            'splat': null
+            'splat': null,
+            'debug': null
         };
         this.pipelineLayout = {
             'parsePly': null,
             'rank': null,
-            'splat': null
+            'splat': null,
+            'debug': null
         };
 
         this.preAllocate();
@@ -94,6 +104,12 @@ class GSRenderer {
             );
             new Uint32Array(this.set_other.indirect.getMappedRange()).set(new Uint32Array([6, 0, 0, 0, 0]));
             this.set_other.indirect.unmap();
+
+            if (GlobalVar.DEBUG) {
+                this.set_other.debug = this.device.createBuffer(
+                    { size: 256 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | DEBUG_FLAG,}
+                );
+            }
         }
     }
 
@@ -204,6 +220,29 @@ class GSRenderer {
                 },
             ],
         });
+
+        if (GlobalVar.DEBUG) {
+            this.bindGroupLayout_debug.set3 = this.device.createBindGroupLayout({
+                entries: [
+                    {   // set other debug
+                        binding: 0,
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: { type: 'storage', },
+                    },
+                ],
+            });
+            this.bindGroup_debug.set3 = this.device.createBindGroup({
+                layout: this.bindGroupLayout_debug.set3,
+                entries: [
+                    {   // set other debug
+                        binding: 0,
+                        resource: {
+                            buffer: this.set_other.debug,
+                        },
+                    },
+                ],
+            });
+        }
 
         this.bindGroupLayout_read.set1 = this.device.createBindGroupLayout({
             entries: [
@@ -317,6 +356,21 @@ class GSRenderer {
             });
             this.pipeline.rank = this.device.createComputePipeline({
                 layout: this.pipelineLayout.rank,
+                compute: {
+                    module: shaderModule,
+                    entryPoint: "main",
+                },
+            });
+        }
+        if (GlobalVar.DEBUG) {  // debug splat
+            this.pipelineLayout.debug = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout.set1, this.bindGroupLayout.set2, this.bindGroupLayout_debug.set3],
+            });
+            const shaderModule = this.device.createShaderModule({
+                code: splat_debug,
+            });
+            this.pipeline.debug = this.device.createComputePipeline({
+                layout: this.pipelineLayout.debug,
                 compute: {
                     module: shaderModule,
                     entryPoint: "main",

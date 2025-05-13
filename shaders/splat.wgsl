@@ -2,8 +2,8 @@ enable f16;
 
 @group(0) @binding(0) var<uniform> Camera : CameraInfo;
 
-@group(1) @binding(0) var<storage, read> Pos : array<vec3<f32>>;
-@group(1) @binding(1) var<storage, read> Cov3d : array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read> Pos : array<f32>;
+@group(1) @binding(1) var<storage, read> Cov3d : array<f32>;
 @group(1) @binding(2) var<storage, read> Color : array<vec4<f32>>;
 @group(1) @binding(3) var<storage, read> SH : array<vec4<f16>>;
 
@@ -45,7 +45,7 @@ fn vert_main(
     }
     // quad positions (-1, -1), (-1, 1), (1, -1), (1, 1), ccw in screen space.
     let inPosition = vec3<f32>(f32(vertex_index / 2u) * 2.0 - 1.0, f32(vertex_index % 2u) * 2.0 - 1.0, 0.0);
-    let splatCenter = Pos[splatIndex];
+    let splatCenter = vec3<f32>(Pos[splatIndex * 3 + 0], Pos[splatIndex * 3 + 1], Pos[splatIndex * 3 + 2]);
 
     let transformModelViewMatrix = Camera.view;
     let viewCenter = transformModelViewMatrix * vec4<f32>(splatCenter, 1.0);
@@ -89,8 +89,8 @@ fn vert_main(
     splatColor = vec4<f32>(color, splatColor.a);
     out.outFragCol = splatColor;
 
-    let v0 = Cov3d[splatIndex * 2 + 0];
-    let v1 = Cov3d[splatIndex * 2 + 1];
+    let v0 = vec3<f32>(Cov3d[splatIndex * 6 + 0], Cov3d[splatIndex * 6 + 1], Cov3d[splatIndex * 6 + 2]);
+    let v1 = vec3<f32>(Cov3d[splatIndex * 6 + 3], Cov3d[splatIndex * 6 + 4], Cov3d[splatIndex * 6 + 5]);
     let Vrk = mat3x3<f32>(
         v0.x, v0.y, v0.z,
         v0.y, v1.x, v1.y,

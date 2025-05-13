@@ -1,7 +1,7 @@
 const rank_comp_wgsl = `
 @group(0) @binding(0) var<uniform> Camera : CameraInfo;
 
-@group(1) @binding(0) var<storage, read> Pos : array<vec3<f32>>;
+@group(1) @binding(0) var<storage, read> Pos : array<f32>;
 
 @group(2) @binding(0) var<storage, read_write> Key : array<u32>;
 @group(2) @binding(1) var<storage, read_write> Index : array<u32>;
@@ -31,7 +31,7 @@ fn main(
   	  	return;
   	}
 
-  	let pos: vec4<f32> = vec4<f32>(Pos[id], 1.0);
+  	let pos: vec4<f32> = vec4<f32>(Pos[id * 3 + 0], Pos[id * 3 + 1], Pos[id * 3 + 2], 1.0);
   	var transformed_pos : vec4<f32> = Camera.proj * Camera.view * pos;
   	transformed_pos = transformed_pos / transformed_pos.w;
   	let depth : f32 = transformed_pos.z;
