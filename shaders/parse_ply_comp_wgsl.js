@@ -1,15 +1,29 @@
 const parse_ply_comp_wgsl = `
 enable f16;
-@group(0) @binding(1) var<uniform> PointCount : u32;
+
+@group(0) @binding(0) var<uniform> Camera : CameraInfo;
 
 @group(1) @binding(0) var<storage, read_write> Pos : array<f32>;
 @group(1) @binding(1) var<storage, read_write> Cov3d : array<f32>;
-@group(1) @binding(2) var<storage, read_write> Opacity : array<f32>;
+@group(1) @binding(2) var<storage, read_write> Color : array<f32>;
 @group(1) @binding(3) var<storage, read_write> SH : array<f16>;
 
 // pos(3), scale(3), rot(4), sh(48), opacity(1)
 @group(3) @binding(0) var<storage, read> Offsets : array<u32>;
 @group(3) @binding(1) var<storage, read> Ply : array<f32>;
+
+struct CameraInfo {
+  	proj : mat4x4<f32>,
+  	view : mat4x4<f32>,
+  	camPos : vec3<f32>,
+  	pointCnt : u32,
+  	focal : vec2<f32>,
+	viewport: vec2<f32>,
+	invClientViewport: vec2<f32>,
+	scaleModifier: f32,
+	frustumDilation: f32,
+	alphaCullingThreshold: f32,
+};
 
 var<workgroup> localOffsets : array<u32, 60>;
 
@@ -30,7 +44,7 @@ fn main (
     }
     workgroupBarrier();
 
-    if (id < PointCount) {
+    if (id < Camera.pointCnt) {
         let base = localOffsets[59];
 
         Pos[3 * id + 0] = Ply[base * id + localOffsets[0]];
@@ -92,7 +106,7 @@ fn main (
             SH[48 * id + i] = f16(Ply[base * id + localOffsets[10 + i]]);
         }
     
-        Opacity[id] = sigmoid(Ply[base * id + localOffsets[58]]);
+        Color[4 * id + 3] = sigmoid(Ply[base * id + localOffsets[58]]);
     }
 }`;
 export default parse_ply_comp_wgsl;

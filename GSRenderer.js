@@ -1,7 +1,5 @@
 import parse_ply_comp_wgsl from './shaders/parse_ply_comp_wgsl.js';
 import rank_comp_wgsl from './shaders/rank_comp_wgsl.js';
-import inverse_index_comp_wgsl from './shaders/inverse_index_comp_wgsl.js';
-import projection_comp_wgsl from './shaders/projection_comp_wgsl.js';
 import splat_wgsl from './shaders/splat_wgsl.js';
 import { GlobalVar } from "./Global.js";
 
@@ -12,36 +10,48 @@ class GSRenderer {
         this.set1 = {
             'pos': null,
             'cov3d': null,
-            'opacity': null,
+            'color': null,
             'sh': null,
         };
         this.set2 = {
-            'indirect': null,
-            'instance': null,
-            'visibleNum': null,
             'key': null,
             'index': null,
-            'inverse': null,
+        };
+        this.set3 = {
+            'visibleNum': null
+        };
+        this.set_other = {
+            'indirect': null
         };
 
-        this.bindGroup1 = null;
-        this.bindGroup2 = null;
-        this.bindGroupLayout1 = null;
-        this.bindGroupLayout2 = null;
+        this.bindGroup = {
+            'set1': null,
+            'set2': null,
+            'set3': null,
+        }
+        this.bindGroupLayout = {
+            'set1': null,
+            'set2': null,
+            'set3': null,
+        }
+        this.bindGroup_read = {
+            'set2': null,
+            'set3': null,
+        }
+        this.bindGroupLayout_read = {
+            'set2': null,
+            'set3': null,
+        }
 
         this.presentationFormat = null;
         this.pipeline = {
             'parsePly': null,
             'rank': null,
-            'projection': null,
-            'inverse': null,
             'splat': null
         };
         this.pipelineLayout = {
             'parsePly': null,
             'rank': null,
-            'projection': null,
-            'inverse': null,
             'splat': null
         };
 
@@ -49,65 +59,46 @@ class GSRenderer {
     }
 
     preAllocate() {
+        const DEBUG_FLAG = GlobalVar ? GPUBufferUsage.COPY_SRC : 0;
         const maxCount = GlobalVar.MAX_SPLAT_COUNT;
         {
             this.set1.pos = this.device.createBuffer(
-                { size: maxCount * 3 * 4, usage: GPUBufferUsage.STORAGE, label: "pos" }
+                { size: maxCount * 3 * 4, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "pos" }
             );
             this.set1.cov3d = this.device.createBuffer(
-                { size: maxCount * 6 * 4, usage: GPUBufferUsage.STORAGE, label: "cov3d" }
+                { size: maxCount * 6 * 4, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "cov3d" }
             );
-            this.set1.opacity = this.device.createBuffer(
-                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "opacity" }
+            this.set1.color = this.device.createBuffer(
+                { size: maxCount * 4 * 4, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "color" }
             );
             this.set1.sh = this.device.createBuffer(
-                { size: maxCount * 48 * 2, usage: GPUBufferUsage.STORAGE, label: "sh" }
+                { size: maxCount * 48 * 2, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "sh" }
             );
         }
         {
-            this.set2.indirect = this.device.createBuffer(
-                { size: 5 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT, label: "indirect" }
-            );
-            this.set2.instance = this.device.createBuffer(
-                { size: maxCount * 10 * 4, usage: GPUBufferUsage.STORAGE, label: "instance" }
-            );
-            this.set2.visibleNum = this.device.createBuffer(
-                { size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST, label: "visibleNum" }
-            );
             this.set2.key = this.device.createBuffer(
-                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "key" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "key" }
             );
             this.set2.index = this.device.createBuffer(
-                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE, label: "index" }
+                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE | DEBUG_FLAG, label: "index" }
             );
-            this.set2.inverse = this.device.createBuffer(
-                { size: maxCount * 1 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, label: "inverse" }
+        }
+        {
+            this.set3.visibleNum = this.device.createBuffer(
+                { size: 1 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST, label: "visibleNum" }
             );
+        }
+        {
+            this.set_other.indirect = this.device.createBuffer(
+                { size: 5 * 4, usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | DEBUG_FLAG, label: "indirect", mappedAtCreation: true, }
+            );
+            new Uint32Array(this.set_other.indirect.getMappedRange()).set(new Uint32Array([6, 0, 0, 0, 0]));
+            this.set_other.indirect.unmap();
         }
     }
 
     createBindGroup() {
-        this.bindGroupLayout_splat = this.device.createBindGroupLayout({
-            entries: [
-                {   // set1.instance read
-                    binding: 0,
-                    visibility: GPUShaderStage.VERTEX,
-                    buffer: { type: 'read-only-storage', },
-                },
-            ],
-        });
-        this.bindGroup_splat = this.device.createBindGroup({
-            layout: this.bindGroupLayout_splat,
-            entries: [
-                {   // set1.instance read
-                    binding: 0,
-                    resource: {
-                        buffer: this.set2.instance,
-                    },
-                },
-            ],
-        });
-        this.bindGroupLayout1 = this.device.createBindGroupLayout({
+        this.bindGroupLayout.set1 = this.device.createBindGroupLayout({
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -119,7 +110,7 @@ class GSRenderer {
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
                 },
-                {   // set1.opacity
+                {   // set1.color
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
@@ -131,8 +122,8 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroup1 = this.device.createBindGroup({
-            layout: this.bindGroupLayout1,
+        this.bindGroup.set1 = this.device.createBindGroup({
+            layout: this.bindGroupLayout.set1,
             entries: [
                 {   // set1.pos
                     binding: 0,
@@ -146,10 +137,10 @@ class GSRenderer {
                         buffer: this.set1.cov3d,
                     },
                 },
-                {   // set1.opacity
+                {   // set1.color
                     binding: 2,
                     resource: {
-                        buffer: this.set1.opacity,
+                        buffer: this.set1.color,
                     },
                 },
                 {   // set1.sh
@@ -160,86 +151,151 @@ class GSRenderer {
                 },
             ],
         });
-        this.bindGroupLayout2 = this.device.createBindGroupLayout({
+
+        this.bindGroupLayout.set2 = this.device.createBindGroupLayout({
             entries: [
-                {   // set2.indirect
+                {   // set2.key
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
                 },
-                {   // set2.instance(write)
-                    binding: 1,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'storage', },
-                },
-                {   // set2.visibleNum
-                    binding: 2,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'storage', },
-                },
-                {   // set2.key
-                    binding: 3,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'storage', },
-                },
                 {   // set2.index
-                    binding: 4,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'storage', },
-                },
-                {   // set2.inverse
-                    binding: 5,
+                    binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
                 },
             ],
         });
-        this.bindGroup2 = this.device.createBindGroup({
-            layout: this.bindGroupLayout2,
+        this.bindGroup.set2 = this.device.createBindGroup({
+            layout: this.bindGroupLayout.set2,
             entries: [
-                {   // set2.indirect
-                    binding: 0,
-                    resource: {
-                        buffer: this.set2.indirect,
-                    },
-                },
-                {   // set2.instance(write)
-                    binding: 1,
-                    resource: {
-                        buffer: this.set2.instance,
-                    },
-                },
-                {   // set2.visibleNum
-                    binding: 2,
-                    resource: {
-                        buffer: this.set2.visibleNum,
-                    },
-                },
                 {   // set2.key
-                    binding: 3,
+                    binding: 0,
                     resource: {
                         buffer: this.set2.key,
                     },
                 },
                 {   // set2.index
-                    binding: 4,
+                    binding: 1,
                     resource: {
                         buffer: this.set2.index,
                     },
                 },
-                {   // set2.inverse
-                    binding: 5,
+            ],
+        });
+
+        this.bindGroupLayout.set3 = this.device.createBindGroupLayout({
+            entries: [
+                {   // set3.indirect
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+            ],
+        });
+        this.bindGroup.set3 = this.device.createBindGroup({
+            layout: this.bindGroupLayout.set3,
+            entries: [
+                {   // set3.indirect
+                    binding: 0,
                     resource: {
-                        buffer: this.set2.inverse,
+                        buffer: this.set3.visibleNum,
+                    },
+                },
+            ],
+        });
+
+        this.bindGroupLayout_read.set1 = this.device.createBindGroupLayout({
+            entries: [
+                {   // set1.pos
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.cov3d
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.color
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set1.sh
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+            ],
+        });
+        this.bindGroup_read.set1 = this.device.createBindGroup({
+            layout: this.bindGroupLayout_read.set1,
+            entries: [
+                {   // set1.pos
+                    binding: 0,
+                    resource: {
+                        buffer: this.set1.pos,
+                    },
+                },
+                {   // set1.cov3d
+                    binding: 1,
+                    resource: {
+                        buffer: this.set1.cov3d,
+                    },
+                },
+                {   // set1.color
+                    binding: 2,
+                    resource: {
+                        buffer: this.set1.color,
+                    },
+                },
+                {   // set1.sh
+                    binding: 3,
+                    resource: {
+                        buffer: this.set1.sh,
+                    },
+                },
+            ],
+        });
+
+        this.bindGroupLayout_read.set2 = this.device.createBindGroupLayout({
+            entries: [
+                {   // set2.key
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {   // set2.index
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage', },
+                },
+            ],
+        });
+        this.bindGroup_read.set2 = this.device.createBindGroup({
+            layout: this.bindGroupLayout_read.set2,
+            entries: [
+                {   // set2.key
+                    binding: 0,
+                    resource: {
+                        buffer: this.set2.key,
+                    },
+                },
+                {   // set2.index
+                    binding: 1,
+                    resource: {
+                        buffer: this.set2.index,
                     },
                 },
             ],
         });
     }
+
     createPipeline(bindGroupLayout0, bindGroupLayout3) {
         {   // parsePly
             this.pipelineLayout.parsePly = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout1, null, bindGroupLayout3],
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout.set1, null, bindGroupLayout3],
             });
             const shaderModule = this.device.createShaderModule({
                 code: parse_ply_comp_wgsl,
@@ -254,7 +310,7 @@ class GSRenderer {
         }
         {   // rank
             this.pipelineLayout.rank = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout1, this.bindGroupLayout2],
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read.set1, this.bindGroupLayout.set2, this.bindGroupLayout.set3],
             });
             const shaderModule = this.device.createShaderModule({
                 code: rank_comp_wgsl,
@@ -267,37 +323,9 @@ class GSRenderer {
                 },
             });
         }
-        {   // inverse
-            this.pipelineLayout.inverse = this.device.createPipelineLayout({
-                bindGroupLayouts: [bindGroupLayout0, null, this.bindGroupLayout2],
-            });
-            const shaderModule = this.device.createShaderModule({
-                code: inverse_index_comp_wgsl,
-            });
-            this.pipeline.inverse = this.device.createComputePipeline({
-                layout: this.pipelineLayout.inverse,
-                compute: {
-                    module: shaderModule,
-                    entryPoint: "main",
-                },
-            });
-        }
-        {   // projection
-            this.pipelineLayout.projection = this.pipelineLayout.rank;
-            const shaderModule = this.device.createShaderModule({
-                code: projection_comp_wgsl,
-            });
-            this.pipeline.projection = this.device.createComputePipeline({
-                layout: this.pipelineLayout.projection,
-                compute: {
-                    module: shaderModule,
-                    entryPoint: "main",
-                },
-            });
-        }
         {   // splat
             this.pipelineLayout.splat = this.device.createPipelineLayout({
-                bindGroupLayouts: [this.bindGroupLayout_splat],
+                bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout_read.set1, this.bindGroupLayout_read.set2,],
             });
             this.pipeline.splat = this.device.createRenderPipeline({
                 layout: this.pipelineLayout.splat,
@@ -344,7 +372,7 @@ class GSRenderer {
     }
 
     get visibleNumBuffer() {
-        return this.set2.visibleNum;
+        return this.set3.visibleNum;
     }
 
     get keyBuffer() {

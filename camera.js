@@ -3,6 +3,9 @@ import Input from './input.js';
 
 // The common functionality between camera implementations
 class CameraBase {
+	static AlignUp(a, aligment) {
+        return Math.floor((a + aligment - 1) / aligment) * aligment;
+    }
 	// The camera matrix
 	constructor() {
 		this.matrix_ = new Float32Array([
@@ -11,10 +14,10 @@ class CameraBase {
 
 		this.view_ = mat4.create();
 
-		this.right_ = new Float32Array(this.matrix_.buffer, 4 * 0, 4);
-		this.up_ = new Float32Array(this.matrix_.buffer, 4 * 4, 4);
-		this.back_ = new Float32Array(this.matrix_.buffer, 4 * 8, 4);
-		this.position_ = new Float32Array(this.matrix_.buffer, 4 * 12, 4);
+		this.right_ = new Float32Array(this.matrix_.buffer, 4 * 0, 3);
+		this.up_ = new Float32Array(this.matrix_.buffer, 4 * 4, 3);
+		this.back_ = new Float32Array(this.matrix_.buffer, 4 * 8, 3);
+		this.position_ = new Float32Array(this.matrix_.buffer, 4 * 12, 3);
 	}
 
 	// Returns the camera matrix
@@ -296,44 +299,29 @@ export class Camera extends CameraBase {
 	}
 
 	createCameraUniformBuffer() {
-		const projectionMatrixSize = 4 * 4 * 4;
-		const viewMatrixSize = 4 * 4 * 4;
-		const cameraPositionSize = 3 * 4;
-		const pad0Size = 4;
-		const screenSizeSize = 2 * 4 + 8;	// 8 is padding
-	  
-		const bufferSize = projectionMatrixSize + viewMatrixSize + cameraPositionSize + pad0Size + screenSizeSize;
-	  
+		const bufferSize = Camera.AlignUp(180, 16);
 		const buffer = new ArrayBuffer(bufferSize);
 		const dataView = new DataView(buffer);
-
-		let offset = 0;
-		const projectionOffset = offset;
-		offset += projectionMatrixSize;
-		const viewOffset = offset;
-		offset += viewMatrixSize;
-		const cameraPositionOffset = offset;
-		offset += cameraPositionSize;
-		const pad0Offset = offset;
-		offset += pad0Size;
-		const screenSizeOffset = offset;
 	  
-		this.cameraUniformHost =  {
-		  	buffer,
-		  	projectionOffset,
-		  	viewOffset,
-		  	cameraPositionOffset,
-		  	pad0Offset,
-		  	screenSizeOffset,
-		  	dataView,
+		this.uniformHost =  {
+		  	buffer: buffer,
+		  	view: dataView,
+			mem: {
+				proj: { offset: 0, size: 64},
+				view: { offset: 64, size: 64},
+				camPos: { offset: 128, size: 12},
+				pointCnt: { offset: 140, size: 4},
+				focal: { offset: 144, size: 8},
+				viewport: { offset: 152, size: 8},
+				invClientViewport: { offset: 160, size: 8},
+				scaleModifier: { offset: 168, size: 4},
+				frustumDilation: { offset: 172, size: 4},
+				alphaCullingThreshold: { offset: 176, size: 4},
+			}
 		};
 
 		this.cameraUniformBuffer = this.device.createBuffer({
 			size: bufferSize,
-			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-		});
-		this.numUniformBuffer = this.device.createBuffer({
-			size: 4,
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 		});
 	}
@@ -343,12 +331,7 @@ export class Camera extends CameraBase {
             entries: [
                 {   // set0.camera
                     binding: 0,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'uniform', },
-                },
-				{   // set0.num
-                    binding: 1,
-                    visibility: GPUShaderStage.COMPUTE,
+                    visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX,
                     buffer: { type: 'uniform', },
                 },
             ],
@@ -362,37 +345,45 @@ export class Camera extends CameraBase {
                         buffer: this.cameraUniformBuffer,
                     },
                 },
-				{   // set0.num
-                    binding: 1,
-                    resource: {
-                        buffer: this.numUniformBuffer,
-                    },
-                },
             ],
         });
 	}
 
-	updateCameraUniform(deltaTime, input) {
+	updateCameraUniform(param, deltaTime, input) {
 		const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
+		const width = this.canvas.clientWidth * this.devicePixelRatio;
+		const height = this.canvas.clientHeight * this.devicePixelRatio;
 		if (aspect !== this.aspect) {
 			//this.updateCanvas();
 			this.aspect = aspect;
 			this.projectionMatrix = mat4.perspective((2 * Math.PI) / 5, this.aspect, 1, 100.0);
+			for (let i = 0; i < 16; ++i) {
+			  	this.uniformHost.view.setFloat32(this.uniformHost.mem.proj.offset + i * 4, this.projectionMatrix[i], true);
+			}
 		}
+		const focalX =this.projectionMatrix[0] * 0.5 * this.devicePixelRatio * this.canvas.clientWidth;
+		const focalY =this.projectionMatrix[5] * 0.5 * this.devicePixelRatio * this.canvas.clientHeight;
 	  	const viewMatrix = this.update(deltaTime, input);
-
 		for (let i = 0; i < 16; ++i) {
-		  	this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.projectionOffset + i * 4, this.projectionMatrix[i], true);
-		  	this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.viewOffset + i * 4, viewMatrix[i], true);
+		  	this.uniformHost.view.setFloat32(this.uniformHost.mem.view.offset + i * 4, viewMatrix[i], true);
 		}
 	  
-		this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.cameraPositionOffset +  0, this.position[0], true);
-		this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.cameraPositionOffset +  4, this.position[1], true);
-		this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.cameraPositionOffset +  8, this.position[2], true);
-		this.cameraUniformHost.dataView.setFloat32(this.cameraUniformHost.cameraPositionOffset + 12, this.position[3], true);
-	  
-		this.cameraUniformHost.dataView.setUint32(this.cameraUniformHost.screenSizeOffset, this.canvas.width, true);
-		this.cameraUniformHost.dataView.setUint32(this.cameraUniformHost.screenSizeOffset + 4, this.canvas.height, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[0], true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[1], true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.camPos.offset, this.position[2], true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.focal.offset, focalX, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.focal.offset, focalY, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.viewport.offset, width, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.viewport.offset, height, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset, 1.0 / this.canvas.clientWidth, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.invClientViewport.offset, 1.0 / this.canvas.clientHeight, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.scaleModifier.offset, param.scaleModifier, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.frustumDilation.offset, param.frustumDilation, true);
+		this.uniformHost.view.setFloat32(this.uniformHost.mem.alphaCullingThreshold.offset, param.alphaCullingThreshold, true);
+	}
+
+	updatePointCnt(pointCnt) {
+		this.uniformHost.view.setUint32(this.uniformHost.mem.pointCnt.offset, pointCnt, true);
 	}
 
 	copyMatrix(srcType, dstType) {
@@ -440,11 +431,7 @@ export class Camera extends CameraBase {
 	}
 
 	writeCameraUniformBuffer() {
-		this.device.queue.writeBuffer(this.cameraUniformBuffer, 0, this.cameraUniformHost.buffer);
-	}
-	writeNumUniformBuffer(num) {
-		const numData = new Uint32Array([num]);
-		this.device.queue.writeBuffer(this.numUniformBuffer, 0, numData.buffer);
+		this.device.queue.writeBuffer(this.cameraUniformBuffer, 0, this.uniformHost.buffer);
 	}
 }
 

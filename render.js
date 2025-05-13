@@ -28,6 +28,7 @@ async function main() {
 		format: presentationFormat,
 	});
 	gsRenderer.setFormat(presentationFormat);
+	GlobalVar.CTX = gpuDevice.device;
 	console.log("using format: " + presentationFormat);
 
 	/**
@@ -40,16 +41,16 @@ async function main() {
 	};
 	const fpsInfo = {
 		fps: 0,
-	  };
+	};
 	// Callback handler for camera mode
 	let oldCameraType = params.type;
 	cameras.setType(params.type);
 	gui.add(fpsInfo, 'fps').listen();
 	gui.add(params, 'type', ['arcball', 'WASD']).onChange(() => {
-	  const newCameraType = params.type;
-	  cameras.copyMatrix(oldCameraType, newCameraType);
-	  oldCameraType = newCameraType;
-	  cameras.setType(params.type);
+	  	const newCameraType = params.type;
+	  	cameras.copyMatrix(oldCameraType, newCameraType);
+	  	oldCameraType = newCameraType;
+	  	cameras.setType(params.type);
 	});
 
 	/**
@@ -101,8 +102,11 @@ async function main() {
         	lastFPSMS = now;
 		}
 
-		cameras.updateCameraUniform(deltaTime, inputHandler());
-		cameras.writeCameraUniformBuffer();
+		cameras.updateCameraUniform( {
+				scaleModifier: 1.0,
+				frustumDilation: 0.1,
+				alphaCullingThreshold: 0.0,
+			}, deltaTime, inputHandler());
 
 		const commandEncoder = gpuDevice.device.createCommandEncoder();
 		if (plyLoader.newPlyReady) {
@@ -110,52 +114,41 @@ async function main() {
 			const computePass = commandEncoder.beginComputePass({label: "ply"});
 			computePass.setPipeline(gsRenderer.pipeline.parsePly);
 			computePass.setBindGroup(0, cameras.bindGroup);
-			computePass.setBindGroup(1, gsRenderer.bindGroup1);
+			computePass.setBindGroup(1, gsRenderer.bindGroup.set1);
 			computePass.setBindGroup(3, plyLoader.bindGroup);
 			computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 			computePass.end();
 
 			plyLoader.newPlyReady = false;
-			cameras.writeNumUniformBuffer(plyLoader.pointCount);
+			cameras.updatePointCnt(plyLoader.pointCount);
 		}
+		cameras.writeCameraUniformBuffer();
 		if (!plyLoader.newPlyReady && plyLoader.pointCount > 0) {
 			{	// rank
-				commandEncoder.clearBuffer(gsRenderer.set2.visibleNum, 0, 4);
+				commandEncoder.clearBuffer(gsRenderer.set3.visibleNum, 0, 4);
 				const computePass = commandEncoder.beginComputePass({label: "rank"});
 				computePass.setPipeline(gsRenderer.pipeline.rank);
 				computePass.setBindGroup(0, cameras.bindGroup);
-				computePass.setBindGroup(1, gsRenderer.bindGroup1);
-				computePass.setBindGroup(2, gsRenderer.bindGroup2);
+				computePass.setBindGroup(1, gsRenderer.bindGroup_read.set1);
+				computePass.setBindGroup(2, gsRenderer.bindGroup.set2);
+				computePass.setBindGroup(3, gsRenderer.bindGroup.set3);
 				computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 				computePass.end();
+				commandEncoder.copyBufferToBuffer(gsRenderer.set3.visibleNum, 0, gsRenderer.set_other.indirect, 4, 4);
 			}
 			{	// radix
 				radixSorter.gpuSort(commandEncoder, plyLoader.pointCount, storageBuffer, 0);
-			}
-			{	
-				commandEncoder.clearBuffer(gsRenderer.set2.inverse, 0, plyLoader.pointCount * 4);
-				const computePass = commandEncoder.beginComputePass({label: "inverse | projection"});
-				{	// inverse
-					computePass.setBindGroup(0, cameras.bindGroup);
-					computePass.setBindGroup(2, gsRenderer.bindGroup2);
-					computePass.setPipeline(gsRenderer.pipeline.inverse);
-					computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
-				}
-				{	// projection
-					computePass.setBindGroup(1, gsRenderer.bindGroup1);
-					computePass.setPipeline(gsRenderer.pipeline.projection);
-					computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
-				}
-				computePass.end();
 			}
 			{	// splat
 				renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
 
 				const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
-				renderPass.setBindGroup(0, gsRenderer.bindGroup_splat);
 				renderPass.setPipeline(gsRenderer.pipeline.splat);
+				renderPass.setBindGroup(0, cameras.bindGroup);
+				renderPass.setBindGroup(1, gsRenderer.bindGroup_read.set1);
+				renderPass.setBindGroup(2, gsRenderer.bindGroup_read.set2);
 				renderPass.setIndexBuffer(indexBuffer, "uint32");
-				renderPass.drawIndexedIndirect(gsRenderer.set2.indirect, 0);
+				renderPass.drawIndexedIndirect(gsRenderer.set_other.indirect, 0);
 				renderPass.end();
 			}
 		}
