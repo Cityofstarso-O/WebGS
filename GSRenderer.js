@@ -24,6 +24,7 @@ class GSRenderer {
         this.set_other = {
             'indirect': null,
             'debug': null,
+            'staging': null,
         };
 
         this.bindGroup = {
@@ -105,9 +106,13 @@ class GSRenderer {
             new Uint32Array(this.set_other.indirect.getMappedRange()).set(new Uint32Array([6, 0, 0, 0, 0]));
             this.set_other.indirect.unmap();
 
+            this.set_other.staging = this.device.createBuffer(
+                { size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: "staging" }
+            );
+
             if (GlobalVar.DEBUG) {
                 this.set_other.debug = this.device.createBuffer(
-                    { size: 256 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | DEBUG_FLAG,}
+                    { size: 256 * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | DEBUG_FLAG, label: `debug` }
                 );
             }
         }
@@ -419,6 +424,13 @@ class GSRenderer {
                 }
             });
         }
+    }
+
+    async getVisibleNum(guiContent, pointCnt) {
+        await this.set_other.staging.mapAsync(GPUMapMode.READ, 0, 4);
+        let num = (new Uint32Array(this.set_other.staging.getMappedRange()))[0];
+        guiContent.visibleNum = `${num}/${pointCnt}  ${(num / pointCnt * 100).toFixed(1)}%`;
+        this.set_other.staging.unmap();
     }
 
     setFormat(format) {

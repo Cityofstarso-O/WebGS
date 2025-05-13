@@ -36,22 +36,32 @@ async function main() {
 	 */
 	const gui = new dat.GUI();
 	// GUI parameters
-	const params = {
-		type: 'arcball',
-	};
-	const fpsInfo = {
+	const guiContent = {
 		fps: 0,
+		camera: 'arcball',
+		gaussian: '3DGS',
+		scaleModifier: 1.0,
+		frustumDilation: 0.1,
+		alphaCullingThreshold: 0.0,
+		visibleNum: `0/0 0%`,
 	};
 	// Callback handler for camera mode
-	let oldCameraType = params.type;
-	cameras.setType(params.type);
-	gui.add(fpsInfo, 'fps').listen();
-	gui.add(params, 'type', ['arcball', 'WASD']).onChange(() => {
-	  	const newCameraType = params.type;
+	let oldCameraType = guiContent.camera;
+	cameras.setType(guiContent.camera);
+	gui.add(guiContent, 'fps').listen();
+	gui.add(guiContent, 'visibleNum').listen();
+	gui.add(guiContent, 'camera', ['arcball', 'WASD']).onChange(() => {
+	  	const newCameraType = guiContent.camera;
 	  	cameras.copyMatrix(oldCameraType, newCameraType);
 	  	oldCameraType = newCameraType;
-	  	cameras.setType(params.type);
+	  	cameras.setType(guiContent.camera);
 	});
+	gui.add(guiContent, 'gaussian', ['3DGS', 'SpaceTime_FULL', 'SpaceTime_LITE']).onChange(() => {
+
+	});
+	gui.add(guiContent, 'scaleModifier').min(0.1).max(1.5).step(0.01);
+	gui.add(guiContent, 'frustumDilation').min(0.0).max(1.0).step(0.01);
+	gui.add(guiContent, 'alphaCullingThreshold').min(0.0).max(1.0).step(0.01);
 
 	/**
 	 * RESOURCE
@@ -97,15 +107,15 @@ async function main() {
 		lastFrameMS = now;
 		frameCount++;
 		if (now - lastFPSMS > 1000) {
-			fpsInfo.fps = Math.round(frameCount / ((now - lastFPSMS) * 0.001));
+			guiContent.fps = Math.round(frameCount / ((now - lastFPSMS) * 0.001));
         	frameCount = 0;
         	lastFPSMS = now;
 		}
 
 		cameras.updateCameraUniform( {
-				scaleModifier: 1.0,
-				frustumDilation: 0.1,
-				alphaCullingThreshold: 0.0,
+				scaleModifier: guiContent.scaleModifier,
+				frustumDilation: guiContent.frustumDilation,
+				alphaCullingThreshold: guiContent.alphaCullingThreshold,
 			}, deltaTime, inputHandler());
 
 		const commandEncoder = gpuDevice.device.createCommandEncoder();
@@ -135,6 +145,9 @@ async function main() {
 				computePass.dispatchWorkgroups(plyLoader.dispatchSize(workgroup_size), 1, 1);
 				computePass.end();
 				commandEncoder.copyBufferToBuffer(gsRenderer.set3.visibleNum, 0, gsRenderer.set_other.indirect, 4, 4);
+				if (gsRenderer.set_other.staging.mapState === `unmapped`) {
+					commandEncoder.copyBufferToBuffer(gsRenderer.set3.visibleNum, 0, gsRenderer.set_other.staging, 0, 4);
+				}
 			}
 			{	// radix
 				radixSorter.gpuSort(commandEncoder, plyLoader.pointCount, storageBuffer, 0);
@@ -165,6 +178,9 @@ async function main() {
 		
 		gpuDevice.device.queue.submit([commandEncoder.finish()]);
 
+		if (gsRenderer.set_other.staging.mapState === `unmapped`) {
+			gsRenderer.getVisibleNum(guiContent, plyLoader.pointCount);	// async
+		}
 		if (GlobalVar.DEBUG) {
 			await map2hostf(4);
 		}
