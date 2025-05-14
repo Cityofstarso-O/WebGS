@@ -2,13 +2,13 @@ enable f16;
 
 @group(0) @binding(0) var<uniform> Camera : CameraInfo;
 
-@group(1) @binding(0) var<storage, read> Pos : array<f32>;
-@group(1) @binding(1) var<storage, read> Feature : array<f32>;
-@group(1) @binding(2) var<storage, read> Color : array<vec4<f32>>;
-@group(1) @binding(3) var<storage, read> Motion : array<f32>;
-@group(1) @binding(4) var<storage, read> Scale : array<f32>;
-@group(1) @binding(5) var<storage, read> Rot : array<vec4<f32>>;
-@group(1) @binding(6) var<storage, read> TRBF : array<f32>;
+@group(1) @binding(0) var<storage, read_write> Pos : array<f32>;
+@group(1) @binding(1) var<storage, read_write> Feature : array<f32>;
+@group(1) @binding(2) var<storage, read_write> Color : array<vec4<f32>>;
+@group(1) @binding(3) var<storage, read_write> Motion : array<f32>;
+@group(1) @binding(4) var<storage, read_write> Scale : array<f32>;
+@group(1) @binding(5) var<storage, read_write> Rot : array<vec4<f32>>;
+@group(1) @binding(6) var<storage, read_write> TRBF : array<f32>;
 
 @group(2) @binding(1) var<storage, read_write> Index : array<u32>;
 

@@ -58,8 +58,9 @@ async function main() {
 	  	oldCameraType = newCameraType;
 	  	cameras.setType(guiContent.camera);
 	});
-	gui.add(guiContent, 'gaussian', ['3DGS', 'SpaceTime_FULL', 'SpaceTime_LITE']).onChange(() => {
-
+	gui.add(guiContent, 'gaussian', ['3DGS', 'SpaceTime_LITE']).onChange(() => {	// , 'SpaceTime_FULL'
+		GlobalVar.MODE = `MODE_` + guiContent.gaussian;
+		plyLoader.pointCount = 0;
 	});
 	gui.add(guiContent, 'scaleModifier').min(0.1).max(1.5).step(0.01);
 	gui.add(guiContent, 'frustumDilation').min(0.0).max(1.0).step(0.01);
@@ -192,7 +193,7 @@ async function main() {
 		if (gsRenderer.set_other.staging.mapState === `unmapped`) {
 			gsRenderer.getVisibleNum(guiContent, plyLoader.pointCount);	// async
 		}
-		if (GlobalVar.DEBUG) {
+		if (GlobalVar.DEBUG && plyLoader.pointCount > 0) {
 			await map2hostf(4);
 		}
 		requestAnimationFrame(frame);

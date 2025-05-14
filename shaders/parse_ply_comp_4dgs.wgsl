@@ -69,7 +69,7 @@ fn main (
         Color[4 * id + 3] = sigmoid(Ply[base * id + localOffsets[13]]);
 
         TRBF[2 * id + 0] = Ply[base * id + localOffsets[14]];
-        let trbf_scale = 1.0 / Ply[base * id + localOffsets[15]];
+        let trbf_scale = exp(-Ply[base * id + localOffsets[15]]);
         TRBF[2 * id + 1] = trbf_scale * trbf_scale;
 
         Motion[9 * id + 0] = Ply[base * id + localOffsets[16]];
