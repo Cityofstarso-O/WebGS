@@ -1,5 +1,5 @@
 # WebGS
-WebGPU viewer for 3dGS/4dGS using GPU radix sort.
+WebGPU viewer for 3dGS/4dGS using GPU radix sort. Demo is available [here](https://cityofstarso-o.github.io/WebGS/).
 ## Features
 - Fast GPU radix sort
   - less artifacts during spinning view
@@ -25,13 +25,12 @@ WebGPU viewer for 3dGS/4dGS using GPU radix sort.
 
 - VRAM >= 4G
 ## Run
-> This project is still in developement. You can use VSCode `Go Live` extension to preview it.
-
 - drag the ply file into the page
 - left drag to rotate
 - press WASD to move 
 ## TODO
-- [ ] add 4DGS support
+- [x] add 4DGS support
+- [ ] add Spacetime-Full support 
 - [ ] make PlyLoader in a second thread
 - [ ] optimize details(gui, interaction, shaders, layouts)
 - [ ] performance test
