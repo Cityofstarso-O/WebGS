@@ -150,7 +150,7 @@ export class WASDCamera extends CameraBase {
 		const deltaUp = sign(digital.up, digital.down);
 		const targetVelocity = vec3.create();
 		const deltaBack = sign(digital.backward, digital.forward);
-		vec3.addScaled(targetVelocity, this.right, deltaRight, targetVelocity);
+		vec3.addScaled(targetVelocity, this.right, -deltaRight, targetVelocity);
 		vec3.addScaled(targetVelocity, this.up, deltaUp, targetVelocity);
 		vec3.addScaled(targetVelocity, this.back, deltaBack, targetVelocity);
 		vec3.normalize(targetVelocity, targetVelocity);

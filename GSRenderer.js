@@ -5,6 +5,7 @@ import parse_ply_comp_4dgs_wgsl from './shaders/parse_ply_comp_4dgs.js';
 import rank_comp_4dgs_wgsl from './shaders/rank_comp_4dgs.js';
 import splat_4dgs_wgsl from './shaders/splat_4dgs.js';
 import splat_debug_wgsl from './shaders/splat_debug.js';
+import splat_debug_4dgs_wgsl from './shaders/splat_debug_4dgs.js';
 import { GlobalVar } from "./Global.js";
 
 class GSRenderer {
@@ -653,7 +654,7 @@ class GSRenderer {
                 bindGroupLayouts: [bindGroupLayout0, this.bindGroupLayout[type].set1, this.bindGroupLayout[type].set2, this.bindGroupLayout_debug[type].set3],
             });
             const shaderModule = this.device.createShaderModule({
-                code: splat_debug_wgsl,
+                code: is4dgs ? splat_debug_4dgs_wgsl : splat_debug_wgsl,
             });
             this.pipeline[type].debug = this.device.createComputePipeline({
                 layout: this.pipelineLayout[type].debug,
