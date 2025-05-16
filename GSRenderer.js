@@ -679,12 +679,12 @@ class GSRenderer {
                         {
                             blend: {
                                 alpha: {
-                                    srcFactor: "one",
+                                    srcFactor: "src-alpha",
                                     dstFactor: "one-minus-src-alpha",
                                     operator: "add",
                                 },
                                 color: {
-                                    srcFactor: "one",
+                                    srcFactor: "src-alpha",
                                     dstFactor: "one-minus-src-alpha",
                                     operator: "add",
                                 },

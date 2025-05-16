@@ -153,5 +153,5 @@ fn frag_main(
     }
     let opacity = inSplatCol.a * exp(-0.5f * A);
     // premultiplied alpha
-    return vec4(inSplatCol.rgb * opacity, opacity);
+    return vec4(inSplatCol.rgb, opacity);
 }
