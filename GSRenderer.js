@@ -403,7 +403,7 @@ class GSRenderer {
         /**
          * MODE_SpaceTime_LITE
          */
-        const maxCount = GlobalVar.MAX_SPLAT_COUNT;
+        const maxCount = GlobalVar.MAX_SPLAT_COUNT * 4;
         this.bindGroupLayout.MODE_SpaceTime_LITE.set1 = this.device.createBindGroupLayout({
             entries: [
                 {   // set1.pos => pos3
